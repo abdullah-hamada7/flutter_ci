@@ -63,6 +63,16 @@ jobs:
           channel: 'stable'
           flutter-version: '3.24.5'
 
+      # - name: Build APK
+      #   run: flutter build apk --release
+
+
+      # - name: Upload APK
+      #   uses: actions/upload-artifact@v3
+      #   with:
+      #     name: release-apk
+      #     path: build/app/outputs/flutter-apk/app-release.apk
+
       # 3. Build the web application in release mode
       - name: Build web app
         run: flutter build web --release
