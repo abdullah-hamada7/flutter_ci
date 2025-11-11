@@ -9,91 +9,98 @@ on:
   pull_request:
     branches:
       - main
-    
   workflow_dispatch:
 
+permissions:
+  contents: read          # least-privilege token
+  security-events: write  # allow SARIF uploads if needed
+
 jobs:
-  # Job 1: Test the application
+  # Job 1: Test & Security
   test:
-    name: Test & Analyze
+    name: Test & Security
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Checkout the repository code
+      # 1. Checkout full history (needed for secret scan)
       - name: Checkout code
         uses: actions/checkout@v5.0.0
-
-      # 2. Set up the Flutter SDK
-      - name: Set up Flutter
-        uses: subosito/flutter-action@v2.21.0
         with:
-          channel: 'stable'
-          flutter-version: '3.24.5' # Use your required Flutter version
+          fetch-depth: 0
 
-      # 3. Install Flutter dependencies
-      - name: Install dependencies
-        run: flutter pub get
+      # 2. Secret leak scan
+      - name: Gitleaks secret scan
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # 4. Run static analysis to find potential issues
-      - name: Analyze code
-        run: flutter analyze
-
-      # 5. Run all unit and widget tests
-      - name: Run tests
-        run: flutter test
-
-  # Job 2: Build and Push Docker Image
-  build-and-push-docker:
-    name: Build & Push Docker Image
-    # This job will only run after the 'test' job completes successfully
-    needs: test
-    # This job will only run for pushes to the 'main' branch, not for pull requests
-    if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-
-    steps:
-      # 1. Checkout the repository code
-      - name: Checkout code
-        uses: actions/checkout@v5.0.0
-
-      # 2. Set up the Flutter SDK to build the web app
+      # 3. Set up Flutter
       - name: Set up Flutter
         uses: subosito/flutter-action@v2.21.0
         with:
           channel: 'stable'
           flutter-version: '3.24.5'
 
+      # 4. Install dependencies
+      - name: Install dependencies
+        run: flutter pub get
+
+      # 5. Generate dependency list for supply-chain scan
+      - name: Generate dependency list
+        run: flutter pub deps --style=json > deps.json
+
+      # 6. OSV supply-chain vulnerability scan
+      - name: OSV-Scanner (Flutter deps)
+        uses: google/osv-scanner-action@v1.9.2
+        with:
+          path: deps.json
+
+      # 7. Static analysis
+      - name: Analyze code
+        run: flutter analyze
+
+      # 8. SAST (Semgrep)
+      - name: Semgrep SAST
+        uses: returntocorp/semgrep-action@v1
+        with:
+          config: >-
+            p/security-audit
+            p/secrets
+
+      # 9. Unit & widget tests
+      - name: Run tests
+        run: flutter test
+
+  # Job 2: Build APK (only after tests pass and only on main branch)
+  build-apk:
+    name: Build APK
+    needs: test
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Checkout repository
+      - name: Checkout code
+        uses: actions/checkout@v5.0.0
+
+      # 2. Set up Flutter
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2.21.0
+        with:
+          channel: 'stable'
+          flutter-version: '3.24.5'
+
+      # 3. Install dependencies
+      - name: Install dependencies
+        run: flutter pub get
+
+      # 4. Build release APK
       - name: Build APK
         run: flutter build apk --release
 
-
+      # 5. Upload APK artifact
       - name: Upload APK
         uses: actions/upload-artifact@v5
         with:
           name: release-apk
           path: build/app/outputs/flutter-apk/app-release.apk
-
-      # # 3. Build the web application in release mode
-      # - name: Build web app
-      #   run: flutter build web --release
-
-      # # 4. Set up Docker Buildx for advanced build features
-      # - name: Set up Docker Buildx
-      #   uses: docker/setup-buildx-action@v3
-
-      # # 5. Log in to Docker Hub using secrets
-      # - name: Log in to Docker Hub
-      #   uses: docker/login-action@v3
-      #   with:
-      #     username: ${{ secrets.DOCKERHUB_USERNAME }}
-      #     password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      # # 6. Build and push the Docker image to Docker Hub
-      # - name: Build and push Docker image
-      #   uses: docker/build-push-action@v5
-      #   with:
-      #     context: .
-      #     push: true
-      #     tags: ${{ secrets.DOCKERHUB_USERNAME }}/flutter-ci-demo:latest
-      #     cache-from: type=gha
-      #     cache-to: type=gha,mode=max
