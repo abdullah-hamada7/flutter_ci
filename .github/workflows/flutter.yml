@@ -21,11 +21,11 @@ jobs:
     steps:
       # 1. Checkout the repository code
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5.0.0
 
       # 2. Set up the Flutter SDK
       - name: Set up Flutter
-        uses: subosito/flutter-action@v2
+        uses: subosito/flutter-action@v2.21.0
         with:
           channel: 'stable'
           flutter-version: '3.24.5' # Use your required Flutter version
@@ -54,11 +54,11 @@ jobs:
     steps:
       # 1. Checkout the repository code
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5.0.0
 
       # 2. Set up the Flutter SDK to build the web app
       - name: Set up Flutter
-        uses: subosito/flutter-action@v2
+        uses: subosito/flutter-action@v2.21.0
         with:
           channel: 'stable'
           flutter-version: '3.24.5'
@@ -68,7 +68,7 @@ jobs:
 
 
       - name: Upload APK
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v5
         with:
           name: release-apk
           path: build/app/outputs/flutter-apk/app-release.apk
