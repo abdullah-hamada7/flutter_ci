@@ -1,0 +1,89 @@
+name: Flutter CI/CD
+
+on:
+  # Run on pushes to the main branch
+  push:
+    branches:
+      - main
+  # Run on pull requests targeting the main branch
+  pull_request:
+    branches:
+      - main
+    
+  workflow_dispatch:
+
+jobs:
+  # Job 1: Test the application
+  test:
+    name: Test & Analyze
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Checkout the repository code
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 2. Set up the Flutter SDK
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          flutter-version: '3.24.5' # Use your required Flutter version
+
+      # 3. Install Flutter dependencies
+      - name: Install dependencies
+        run: flutter pub get
+
+      # 4. Run static analysis to find potential issues
+      - name: Analyze code
+        run: flutter analyze
+
+      # 5. Run all unit and widget tests
+      - name: Run tests
+        run: flutter test
+
+  # Job 2: Build and Push Docker Image
+  build-and-push-docker:
+    name: Build & Push Docker Image
+    # This job will only run after the 'test' job completes successfully
+    needs: test
+    # This job will only run for pushes to the 'main' branch, not for pull requests
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Checkout the repository code
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 2. Set up the Flutter SDK to build the web app
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          flutter-version: '3.24.5'
+
+      # 3. Build the web application in release mode
+      - name: Build web app
+        run: flutter build web --release
+
+      # 4. Set up Docker Buildx for advanced build features
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # 5. Log in to Docker Hub using secrets
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # 6. Build and push the Docker image to Docker Hub
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/flutter-ci-demo:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
