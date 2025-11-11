@@ -1,0 +1,49 @@
+# Flutter / Dart
+.dart_tool/
+.packages
+pubspec_overrides.yaml
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+coverage/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# CI
+.github/
+*.log
+
+# Keys / secrets
+android/key.properties
+android/*.jks
+ios/Runner/GoogleService-Info.plist
+android/app/google-services.json
+firebase.json
+.env
+*.env
+**/*.pem
+**/*.p8
+**/*.p12
+**/*.key
+
+# Docs / misc
+README.md
+tree.txt
+docs/
+screenshots/
+*.md
